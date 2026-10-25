@@ -4,6 +4,12 @@ import re
 import uuid
 from pathlib import Path
 
+import sys as _sys
+
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+_sys.modules.pop("_feiyu_kit", None)  # 顶层模块名，重载插件时先清缓存再导，避免用到旧字节
+import _feiyu_kit as kit  # noqa: E402
+
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, MessageChain, filter
@@ -52,17 +58,9 @@ class FeiyuDraw(Star):
         self.cfg = self._load_cfg()
 
     def _load_cfg(self) -> dict:
-        cfg = dict(DEFAULT_CONFIG)
-        if self.cfg_path.exists():
-            try:
-                cfg.update(json.loads(self.cfg_path.read_text(encoding="utf-8")))
-            except Exception as e:
-                logger.warning(f"[feiyu_draw] 配置读取失败: {e}")
-        else:
-            self.cfg_path.write_text(json.dumps(DEFAULT_CONFIG, ensure_ascii=False, indent=2), encoding="utf-8")
-        if self.plugin_cfg:
-            # 插件配置优先于本地 config.json，空值不覆盖
-            cfg.update({k: v for k, v in self.plugin_cfg.items() if v not in (None, "")})
+        cfg = kit.merge_config(DEFAULT_CONFIG, self.plugin_cfg, self.cfg_path)
+        if not self.cfg_path.exists():
+            kit.save_json(self.cfg_path, DEFAULT_CONFIG, keep=0)
         return cfg
 
     # ---------- ComfyUI ----------
@@ -84,10 +82,7 @@ class FeiyuDraw(Star):
     # ---------- 显存腾挪：画图前关掉 IndexTTS，画完再拉起来 ----------
 
     def _port_open(self, port: int) -> bool:
-        import socket
-        with socket.socket() as s:
-            s.settimeout(1)
-            return s.connect_ex(("127.0.0.1", port)) == 0
+        return kit.port_open(port)
 
     def _stop_index_tts(self) -> None:
         import subprocess, time
