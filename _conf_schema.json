@@ -1,0 +1,103 @@
+{
+  "_sec_comfy": {
+    "description": "=== ComfyUI ===",
+    "type": "text",
+    "invisible": true
+  },
+  "comfyui_url": {
+    "description": "ComfyUI 地址",
+    "type": "string",
+    "default": "http://127.0.0.1:8188"
+  },
+  "workflow": {
+    "description": "生图工作流 json",
+    "type": "string",
+    "default": "",
+    "hint": "填绝对路径，或填 workflow_dir 下的文件名。工作流里需要有 Simple String 节点（第一个放正向提示词，第二个放负向）。"
+  },
+  "workflow_dir": {
+    "description": "工作流目录",
+    "type": "string",
+    "default": "",
+    "hint": "填了之后可以用 /工作流 指令列出、切换 json。"
+  },
+  "negative": {
+    "description": "负向提示词",
+    "type": "text",
+    "default": "lowres, bad anatomy, bad hands, watermark, text, blurry, worst quality"
+  },
+  "timeout_seconds": {
+    "description": "出图超时（秒）",
+    "type": "int",
+    "default": 600,
+    "slider": {
+      "min": 60,
+      "max": 1800,
+      "step": 30
+    }
+  },
+  "_sec_vram": {
+    "description": "=== 显存腾挪 ===",
+    "type": "text",
+    "invisible": true
+  },
+  "vram_switch": {
+    "description": "画图前暂停 IndexTTS",
+    "type": "bool",
+    "default": true,
+    "hint": "两者都吃显存时才需要开；开着会在画图前杀掉监听 7860 的进程，画完再拉起来。"
+  },
+  "tts_dir": {
+    "description": "IndexTTS 目录",
+    "type": "string",
+    "default": "",
+    "condition": {
+      "vram_switch": true
+    }
+  },
+  "tts_python": {
+    "description": "IndexTTS 的 python",
+    "type": "string",
+    "default": "",
+    "hint": "例如 D:\\AI\\index-tts\\.venv\\Scripts\\python.exe",
+    "condition": {
+      "vram_switch": true
+    }
+  },
+  "_sec_translate": {
+    "description": "=== 提示词翻译（可选） ===",
+    "type": "text",
+    "invisible": true
+  },
+  "translate": {
+    "description": "中文提示词翻成英文",
+    "type": "bool",
+    "default": true,
+    "hint": "工作流本身就是中文提示词时请关掉。"
+  },
+  "api_base": {
+    "description": "翻译接口 Base URL",
+    "type": "string",
+    "default": "https://api.deepseek.com",
+    "condition": {
+      "translate": true
+    }
+  },
+  "api_key": {
+    "description": "翻译接口 API Key",
+    "type": "string",
+    "default": "",
+    "hint": "留空则不翻译，直接用原文。",
+    "condition": {
+      "translate": true
+    }
+  },
+  "translate_model": {
+    "description": "翻译模型",
+    "type": "string",
+    "default": "deepseek-chat",
+    "condition": {
+      "translate": true
+    }
+  }
+}
