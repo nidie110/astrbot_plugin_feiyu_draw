@@ -4,7 +4,7 @@ desc: "接本地 ComfyUI 工作流生图，中文提示词自动翻译；画图�
 help: "直接说「画……」即可；/工作流 列出或切换工作流"
 version: 1.1.0
 author: "部署助手"
-repo: ""
+repo: "https://github.com/nidie110/astrbot_plugin_feiyu_draw"
 astrbot_version: ">=4.11.0"
 tags:
   - 绘画
