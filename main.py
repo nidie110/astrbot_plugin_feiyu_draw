@@ -7,8 +7,18 @@ from pathlib import Path
 import sys as _sys
 
 _sys.path.insert(0, str(Path(__file__).resolve().parent))
-_sys.modules.pop("_feiyu_kit", None)  # 顶层模块名，重载插件时先清缓存再导，避免用到旧字节
-import _feiyu_kit as kit  # noqa: E402
+_KIT_PATH = Path(__file__).resolve().parent / "_feiyu_kit.py"
+kit = _sys.modules.get("_feiyu_kit")
+if kit is None:
+    # 全进程只有一份 kit：动作注册表必须共享，所以谁先加载谁就是那份，后来者直接复用。
+    # 磁盘上的 kit 改动要重启整个 AstrBot 进程才生效（面板重载插件不会换掉已经加载的模块）。
+    import importlib.util as _ilu  # noqa: PLC0415
+
+    _spec = _ilu.spec_from_file_location("_feiyu_kit", _KIT_PATH)
+    _fresh = _ilu.module_from_spec(_spec)
+    _sys.modules["_feiyu_kit"] = _fresh
+    _spec.loader.exec_module(_fresh)
+    kit = _fresh
 
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
@@ -51,6 +61,8 @@ class FeiyuDraw(Star):
 
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
+        kit.register_capability("feiyu_draw", "能画图，中文描述也能画", "all")
+        kit.register_action("画", self.do_draw, "按文字描述画一张图并发出去，参数 prompt")
         self.plugin_cfg = dict(config or {})
         self.data_dir = Path("data/plugin_data") / PLUGIN_NAME
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -229,6 +241,32 @@ class FeiyuDraw(Star):
             return text
 
     # ---------- 工作流管理 ----------
+
+    # ---------- 给她用的任务级动作 ----------
+
+    async def do_draw(self, event: AstrMessageEvent, prompt: str = "") -> str:
+        """按描述画一张图，画完直接发出去，然后她照着画面说话。"""
+        prompt = (prompt or "").strip()
+        if not prompt:
+            return "画什么？给个描述。"
+        try:
+            path = await asyncio.to_thread(self._generate_with_vram, prompt)
+        except Exception as e:
+            logger.error(f"[feiyu_draw] 生成失败: {e}")
+            return f"没画出来（{type(e).__name__}）。"
+        img = Comp.Image.fromFileSystem(path)
+        try:
+            await event.send(MessageChain([img]))
+        except Exception as e:
+            logger.error(f"[feiyu_draw] 发图失败: {e}")
+            return f"画好了但没发出去（{type(e).__name__}）。"
+        try:
+            kit.record_material(f"画了一张图：{prompt[:80]}", kind="event", source="draw",
+                                umo=str(getattr(event, "unified_msg_origin", "") or ""),
+                                mood={"P": 2.0, "D": 1.0})
+        except Exception:
+            pass
+        return f"画好了，图已经发出去了。描述是「{prompt[:60]}」——照着画面用你自己的话说，别一句句报细节。"
 
     @filter.command("工作流")
     async def cmd_workflow(self, event: AstrMessageEvent):
